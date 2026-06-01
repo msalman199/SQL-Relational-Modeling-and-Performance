@@ -1,0 +1,12 @@
+UNNORMALIZED FORM ISSUES:
+- Issue 1: [Describe the problem]
+- Issue 2: [Describe the problem]
+
+FIRST NORMAL FORM (1NF) VIOLATIONS:
+- [List any repeating groups or multi-valued attributes]
+
+SECOND NORMAL FORM (2NF) VIOLATIONS:
+- [List any partial dependencies on composite keys]
+
+THIRD NORMAL FORM (3NF) VIOLATIONS:
+- [List any transitive dependencies]
