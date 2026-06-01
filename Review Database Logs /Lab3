@@ -1,0 +1,368 @@
+Review Database Logs
+Prerequisites
+Basic Linux command line knowledge (navigating directories, viewing files)
+Understanding of what a database is
+Familiarity with text editors (nano or vim)
+PostgreSQL basics (what queries and tables are)
+Learning Objectives
+By the end of this lab, you will be able to:
+
+Locate and access PostgreSQL log files on a Linux system
+Identify different types of log entries (queries, errors, warnings)
+Analyze query execution logs to find slow-performing queries
+Detect common database errors in logs
+Document findings for troubleshooting purposes
+Environment Setup
+Step 1: Install PostgreSQL
+Click the "Start Lab" button to access your Linux machine. Then install PostgreSQL:
+
+# Update package list
+sudo apt update
+
+# Install PostgreSQL
+sudo apt install postgresql postgresql-contrib -y
+
+# Start PostgreSQL service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+Step 2: Enable Detailed Logging
+PostgreSQL needs to be configured to log the information we want to review:
+
+# Switch to postgres user
+sudo -i -u postgres
+
+# Open PostgreSQL configuration file
+nano /etc/postgresql/*/main/postgresql.conf
+Find and modify these settings (use Ctrl+W to search):
+
+logging_collector = on
+log_directory = 'log'
+log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+log_statement = 'all'
+log_duration = on
+log_min_duration_statement = 100
+log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d '
+Save the file (Ctrl+O, Enter, Ctrl+X) and restart PostgreSQL:
+
+# Exit postgres user
+exit
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+Step 3: Create Sample Database and Generate Activity
+# Switch to postgres user
+sudo -i -u postgres
+
+# Create a test database
+createdb testdb
+
+# Connect to PostgreSQL
+psql testdb
+Run these SQL commands to create sample data:
+
+-- Create a sample table
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    department VARCHAR(50),
+    salary NUMERIC
+);
+
+-- Insert sample data
+INSERT INTO employees (name, department, salary) VALUES
+('Alice Johnson', 'Engineering', 75000),
+('Bob Smith', 'Marketing', 65000),
+('Carol White', 'Engineering', 80000),
+('David Brown', 'Sales', 70000);
+
+-- Run a fast query
+SELECT * FROM employees WHERE id = 1;
+
+-- Run a slow query (simulate with pg_sleep)
+SELECT pg_sleep(0.5), * FROM employees;
+
+-- Run a query that causes an error
+SELECT * FROM nonexistent_table;
+
+-- Run a complex query
+SELECT department, AVG(salary) FROM employees GROUP BY department;
+
+-- Exit psql
+\q
+
+-- Exit postgres user
+exit
+Task 1: Locate and Access Database Log Files
+Step 1: Find the Log Directory
+PostgreSQL stores logs in a specific directory. Let's locate it:
+
+# Find PostgreSQL data directory
+sudo -u postgres psql -c "SHOW data_directory;"
+
+# Navigate to log directory
+sudo ls -lh /var/lib/postgresql/*/main/log/
+Step 2: Identify the Current Log File
+# List log files sorted by time (newest last)
+sudo ls -lht /var/lib/postgresql/*/main/log/
+
+# View the most recent log file
+sudo tail -f /var/lib/postgresql/*/main/log/postgresql-*.log
+Press Ctrl+C to stop following the log.
+
+Step 3: Create a Working Copy
+For easier analysis, copy the log to your home directory:
+
+# Copy the latest log file
+sudo cp /var/lib/postgresql/*/main/log/postgresql-*.log ~/db_log.txt
+
+# Change ownership
+sudo chown $USER:$USER ~/db_log.txt
+
+# View the file
+cat ~/db_log.txt
+Task 2: Analyze Query Execution Logs
+Step 1: Identify Query Log Entries
+Query logs show what SQL commands were executed:
+
+# Search for SELECT statements
+grep "SELECT" ~/db_log.txt
+
+# Search for INSERT statements
+grep "INSERT" ~/db_log.txt
+
+# Search for all SQL statements with context
+grep -i "statement:" ~/db_log.txt
+Step 2: Find Slow Queries
+Slow queries can impact database performance:
+
+# Find queries that took longer than 100ms
+grep "duration:" ~/db_log.txt
+
+# Show duration with query details
+grep -A 1 "duration:" ~/db_log.txt
+Create a script to analyze slow queries:
+
+# Create analysis script
+nano analyze_slow_queries.sh
+Add this content:
+
+#!/bin/bash
+# Script to find and report slow queries
+
+LOG_FILE="$HOME/db_log.txt"
+THRESHOLD=100  # milliseconds
+
+echo "=== Slow Query Analysis ==="
+echo "Threshold: ${THRESHOLD}ms"
+echo ""
+
+# TODO: Extract queries with duration > threshold
+grep "duration:" "$LOG_FILE" | while read line; do
+    duration=$(echo "$line" | grep -oP 'duration: \K[0-9.]+')
+    if (( $(echo "$duration > $THRESHOLD" | bc -l) )); then
+        echo "Duration: ${duration}ms"
+        echo "$line"
+        echo "---"
+    fi
+done
+Make it executable and run:
+
+chmod +x analyze_slow_queries.sh
+./analyze_slow_queries.sh
+Step 3: Examine Query Patterns
+# Count query types
+echo "=== Query Type Summary ==="
+echo "SELECT queries: $(grep -c "SELECT" ~/db_log.txt)"
+echo "INSERT queries: $(grep -c "INSERT" ~/db_log.txt)"
+echo "UPDATE queries: $(grep -c "UPDATE" ~/db_log.txt)"
+echo "DELETE queries: $(grep -c "DELETE" ~/db_log.txt)"
+Task 3: Detect and Review Errors
+Step 1: Find Error Messages
+# Search for ERROR entries
+grep "ERROR:" ~/db_log.txt
+
+# Search for WARNING entries
+grep "WARNING:" ~/db_log.txt
+
+# Search for FATAL entries
+grep "FATAL:" ~/db_log.txt
+Step 2: Categorize Errors
+Create an error summary script:
+
+nano error_summary.sh
+Add this content:
+
+#!/bin/bash
+# Script to summarize database errors
+
+LOG_FILE="$HOME/db_log.txt"
+
+echo "=== Database Error Summary ==="
+echo ""
+
+# Count errors by type
+echo "Total Errors: $(grep -c "ERROR:" "$LOG_FILE")"
+echo "Total Warnings: $(grep -c "WARNING:" "$LOG_FILE")"
+echo ""
+
+echo "=== Common Error Types ==="
+# TODO: List unique error messages
+grep "ERROR:" "$LOG_FILE" | cut -d':' -f4- | sort | uniq -c | sort -rn
+
+echo ""
+echo "=== Recent Errors (Last 5) ==="
+grep "ERROR:" "$LOG_FILE" | tail -5
+Make executable and run:
+
+chmod +x error_summary.sh
+./error_summary.sh
+Step 3: Analyze Specific Errors
+# Find connection errors
+grep -i "connection" ~/db_log.txt | grep -i "error"
+
+# Find permission errors
+grep -i "permission denied" ~/db_log.txt
+
+# Find syntax errors
+grep -i "syntax error" ~/db_log.txt
+Task 4: Document Findings
+Step 1: Create a Log Analysis Report
+nano log_analysis_report.txt
+Use this template to document your findings:
+
+=== PostgreSQL Log Analysis Report ===
+Date: [Current Date]
+Analyzed Log: postgresql-[timestamp].log
+Analysis Period: [Start Time] to [End Time]
+
+--- SUMMARY ---
+Total Log Entries: [Count]
+Total Queries Executed: [Count]
+Total Errors Found: [Count]
+Total Warnings Found: [Count]
+
+--- SLOW QUERIES ---
+Number of Slow Queries (>100ms): [Count]
+
+Top 3 Slowest Queries:
+1. Duration: [X]ms - Query: [SQL Statement]
+2. Duration: [X]ms - Query: [SQL Statement]
+3. Duration: [X]ms - Query: [SQL Statement]
+
+--- ERRORS DETECTED ---
+Most Common Error Type: [Error Description]
+Occurrences: [Count]
+
+Critical Errors Requiring Attention:
+- [Error 1 with timestamp]
+- [Error 2 with timestamp]
+
+--- RECOMMENDATIONS ---
+1. [Action item based on findings]
+2. [Action item based on findings]
+3. [Action item based on findings]
+
+--- NOTES ---
+[Any additional observations]
+Step 2: Generate Automated Report
+Create a comprehensive report script:
+
+nano generate_report.sh
+Add this content:
+
+#!/bin/bash
+# Automated log analysis report generator
+
+LOG_FILE="$HOME/db_log.txt"
+REPORT_FILE="$HOME/log_analysis_report_$(date +%Y%m%d_%H%M%S).txt"
+
+{
+    echo "=== PostgreSQL Log Analysis Report ==="
+    echo "Generated: $(date)"
+    echo "Log File: $LOG_FILE"
+    echo ""
+    
+    echo "--- SUMMARY ---"
+    echo "Total Lines: $(wc -l < "$LOG_FILE")"
+    echo "Total Queries: $(grep -c "statement:" "$LOG_FILE")"
+    echo "Total Errors: $(grep -c "ERROR:" "$LOG_FILE")"
+    echo "Total Warnings: $(grep -c "WARNING:" "$LOG_FILE")"
+    echo ""
+    
+    echo "--- QUERY BREAKDOWN ---"
+    echo "SELECT: $(grep -c "SELECT" "$LOG_FILE")"
+    echo "INSERT: $(grep -c "INSERT" "$LOG_FILE")"
+    echo "UPDATE: $(grep -c "UPDATE" "$LOG_FILE")"
+    echo "DELETE: $(grep -c "DELETE" "$LOG_FILE")"
+    echo ""
+    
+    echo "--- SLOW QUERIES (>100ms) ---"
+    grep "duration:" "$LOG_FILE" | head -5
+    echo ""
+    
+    echo "--- RECENT ERRORS ---"
+    grep "ERROR:" "$LOG_FILE" | tail -5
+    echo ""
+    
+    echo "--- RECOMMENDATIONS ---"
+    if [ $(grep -c "duration:" "$LOG_FILE") -gt 0 ]; then
+        echo "- Review and optimize slow queries"
+    fi
+    if [ $(grep -c "ERROR:" "$LOG_FILE") -gt 0 ]; then
+        echo "- Investigate and resolve logged errors"
+    fi
+    echo "- Consider adjusting log_min_duration_statement if needed"
+    
+} > "$REPORT_FILE"
+
+echo "Report generated: $REPORT_FILE"
+cat "$REPORT_FILE"
+Make executable and run:
+
+chmod +x generate_report.sh
+./generate_report.sh
+Verification
+Verify Log Access
+# Confirm you can read logs
+test -r ~/db_log.txt && echo "SUCCESS: Log file is readable" || echo "FAIL: Cannot read log file"
+Verify Analysis Scripts
+# Check scripts exist and are executable
+ls -l analyze_slow_queries.sh error_summary.sh generate_report.sh
+
+# Verify report was created
+ls -lh log_analysis_report_*.txt
+Verify Understanding
+Answer these questions to confirm your learning:
+
+Where are PostgreSQL logs stored by default?
+What configuration parameter controls which queries are logged?
+How can you identify slow queries in the logs?
+What's the difference between ERROR and WARNING log levels?
+Troubleshooting Tips
+Issue: Cannot find log files
+
+Solution: Check if logging_collector is enabled in postgresql.conf
+Solution: Verify PostgreSQL is running: sudo systemctl status postgresql
+Issue: Log file is empty
+
+Solution: Ensure you generated database activity after enabling logging
+Solution: Check log_statement setting in postgresql.conf
+Issue: Permission denied when accessing logs
+
+Solution: Use sudo or copy logs to your home directory with proper ownership
+Issue: grep commands return no results
+
+Solution: Verify the log file contains data: wc -l ~/db_log.txt
+Solution: Check if you're searching the correct log file
+Conclusion
+In this lab, you learned how to:
+
+Locate PostgreSQL log files in the Linux filesystem
+Configure PostgreSQL to generate detailed logs
+Use grep and shell scripts to analyze log contents
+Identify slow queries that may need optimization
+Detect and categorize database errors
+Create documentation and reports from log analysis
+Why This Matters: Database logs are essential for troubleshooting performance issues, identifying security problems, and understanding application behavior. Regular log review helps maintain healthy database systems and prevents small issues from becoming major problems.
+
+Next Steps: Practice analyzing logs from production-like workloads, learn to use log analysis tools like pgBadger, and explore automated monitoring solutions.
