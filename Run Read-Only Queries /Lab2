@@ -1,0 +1,312 @@
+Run Read-Only Queries
+Prerequisites
+Basic Linux command line knowledge
+Understanding of what a database is
+Familiarity with terminal navigation
+No prior SQL experience required
+Learning Objectives
+By the end of this lab, you will be able to:
+
+Execute SELECT queries to retrieve data from database tables
+Filter data using WHERE conditions
+Sort query results with ORDER BY
+Limit the number of returned rows using LIMIT
+Analyze and interpret query results
+Environment Setup
+Install SQLite
+SQLite is a lightweight, open-source database that runs directly on your Linux machine without requiring a separate server.
+
+# Update package list
+sudo apt update
+
+# Install SQLite
+sudo apt install -y sqlite3
+
+# Verify installation
+sqlite3 --version
+Create Sample Database
+We'll create a sample database with employee and department data for practice.
+
+# Create a directory for the lab
+mkdir ~/sql-lab
+cd ~/sql-lab
+
+# Create and populate the database
+sqlite3 company.db
+Once inside the SQLite prompt, run these commands to create sample data:
+
+-- Create departments table
+CREATE TABLE departments (
+    dept_id INTEGER PRIMARY KEY,
+    dept_name TEXT NOT NULL,
+    location TEXT
+);
+
+-- Create employees table
+CREATE TABLE employees (
+    emp_id INTEGER PRIMARY KEY,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    dept_id INTEGER,
+    salary REAL,
+    hire_date TEXT,
+    FOREIGN KEY (dept_id) REFERENCES departments(dept_id)
+);
+
+-- Insert department data
+INSERT INTO departments VALUES (1, 'Engineering', 'New York');
+INSERT INTO departments VALUES (2, 'Sales', 'Chicago');
+INSERT INTO departments VALUES (3, 'Marketing', 'Los Angeles');
+INSERT INTO departments VALUES (4, 'HR', 'New York');
+
+-- Insert employee data
+INSERT INTO employees VALUES (1, 'John', 'Smith', 1, 75000, '2020-01-15');
+INSERT INTO employees VALUES (2, 'Sarah', 'Johnson', 2, 65000, '2019-03-22');
+INSERT INTO employees VALUES (3, 'Mike', 'Williams', 1, 82000, '2018-07-10');
+INSERT INTO employees VALUES (4, 'Emily', 'Brown', 3, 58000, '2021-05-18');
+INSERT INTO employees VALUES (5, 'David', 'Jones', 1, 71000, '2020-11-03');
+INSERT INTO employees VALUES (6, 'Lisa', 'Davis', 2, 69000, '2019-09-14');
+INSERT INTO employees VALUES (7, 'James', 'Miller', 4, 54000, '2021-02-28');
+INSERT INTO employees VALUES (8, 'Anna', 'Wilson', 3, 62000, '2020-06-07');
+Exit SQLite by typing:
+
+.quit
+Task 1: Select Tables and Run Basic SELECT Queries
+Step 1: Connect to Database
+# Connect to the company database
+sqlite3 company.db
+Step 2: View Available Tables
+-- List all tables in the database
+.tables
+Expected Output: You should see departments and employees
+
+Step 3: View Table Structure
+-- View the structure of the employees table
+.schema employees
+
+-- View the structure of the departments table
+.schema departments
+What to observe: Note the column names, data types, and relationships between tables.
+
+Step 4: Run Basic SELECT Queries
+-- Select all columns from all employees
+SELECT * FROM employees;
+
+-- Select specific columns
+SELECT first_name, last_name, salary FROM employees;
+
+-- Select all departments
+SELECT * FROM departments;
+
+-- Select only department names
+SELECT dept_name FROM departments;
+Analysis: The asterisk (*) selects all columns. Specifying column names gives you only the data you need.
+
+Task 2: Use WHERE Conditions to Filter Data
+Step 1: Filter by Numeric Values
+-- Find employees with salary greater than 70000
+SELECT first_name, last_name, salary 
+FROM employees 
+WHERE salary > 70000;
+
+-- Find employees with salary exactly 65000
+SELECT first_name, last_name, salary 
+FROM employees 
+WHERE salary = 65000;
+
+-- Find employees in department 1
+SELECT first_name, last_name, dept_id 
+FROM employees 
+WHERE dept_id = 1;
+Step 2: Filter by Text Values
+-- Find employee named John Smith
+SELECT * FROM employees 
+WHERE first_name = 'John' AND last_name = 'Smith';
+
+-- Find all employees with last name starting with 'J'
+SELECT first_name, last_name 
+FROM employees 
+WHERE last_name LIKE 'J%';
+
+-- Find departments in New York
+SELECT * FROM departments 
+WHERE location = 'New York';
+Note: SQL is case-insensitive for keywords but case-sensitive for data values. Use single quotes for text values.
+
+Step 3: Combine Multiple Conditions
+-- Find Engineering employees with salary over 70000
+SELECT e.first_name, e.last_name, e.salary, d.dept_name
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+WHERE d.dept_name = 'Engineering' AND e.salary > 70000;
+
+-- Find employees hired in 2020 or 2021
+SELECT first_name, last_name, hire_date 
+FROM employees 
+WHERE hire_date LIKE '2020%' OR hire_date LIKE '2021%';
+Task 3: Apply ORDER BY and LIMIT
+Step 1: Sort Results with ORDER BY
+-- Sort employees by salary (lowest to highest)
+SELECT first_name, last_name, salary 
+FROM employees 
+ORDER BY salary;
+
+-- Sort employees by salary (highest to lowest)
+SELECT first_name, last_name, salary 
+FROM employees 
+ORDER BY salary DESC;
+
+-- Sort by last name alphabetically
+SELECT first_name, last_name 
+FROM employees 
+ORDER BY last_name;
+
+-- Sort by multiple columns (department, then salary)
+SELECT first_name, last_name, dept_id, salary 
+FROM employees 
+ORDER BY dept_id, salary DESC;
+Key Concept: ASC (ascending) is default. Use DESC for descending order.
+
+Step 2: Limit Number of Results
+-- Get top 3 highest paid employees
+SELECT first_name, last_name, salary 
+FROM employees 
+ORDER BY salary DESC 
+LIMIT 3;
+
+-- Get the 5 most recently hired employees
+SELECT first_name, last_name, hire_date 
+FROM employees 
+ORDER BY hire_date DESC 
+LIMIT 5;
+
+-- Get first 2 employees alphabetically
+SELECT first_name, last_name 
+FROM employees 
+ORDER BY last_name 
+LIMIT 2;
+Step 3: Combine WHERE, ORDER BY, and LIMIT
+-- Get top 2 Engineering employees by salary
+SELECT e.first_name, e.last_name, e.salary, d.dept_name
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+WHERE d.dept_name = 'Engineering'
+ORDER BY e.salary DESC
+LIMIT 2;
+
+-- Get 3 employees with salary over 60000, sorted by hire date
+SELECT first_name, last_name, salary, hire_date 
+FROM employees 
+WHERE salary > 60000 
+ORDER BY hire_date 
+LIMIT 3;
+Task 4: Analyze Query Results
+Step 1: Count Records
+-- Count total number of employees
+SELECT COUNT(*) FROM employees;
+
+-- Count employees in each department
+SELECT dept_id, COUNT(*) as employee_count 
+FROM employees 
+GROUP BY dept_id;
+
+-- Count departments by location
+SELECT location, COUNT(*) as dept_count 
+FROM departments 
+GROUP BY location;
+Step 2: Calculate Aggregates
+-- Calculate average salary
+SELECT AVG(salary) as average_salary FROM employees;
+
+-- Find minimum and maximum salaries
+SELECT MIN(salary) as lowest_salary, MAX(salary) as highest_salary 
+FROM employees;
+
+-- Calculate total salary by department
+SELECT d.dept_name, SUM(e.salary) as total_salary
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+GROUP BY d.dept_name;
+
+-- Calculate average salary by department
+SELECT d.dept_name, AVG(e.salary) as avg_salary
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+GROUP BY d.dept_name
+ORDER BY avg_salary DESC;
+Step 3: Practice Query Analysis
+Run this comprehensive query and analyze the results:
+
+-- Detailed employee report
+SELECT 
+    e.first_name || ' ' || e.last_name as full_name,
+    d.dept_name,
+    d.location,
+    e.salary,
+    e.hire_date
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+WHERE e.salary >= 60000
+ORDER BY d.dept_name, e.salary DESC;
+Questions to consider:
+
+How many employees meet the salary criteria?
+Which department has the most high-earning employees?
+What patterns do you notice in the data?
+Verification
+Verify Your Skills
+Run these queries to confirm you understand the concepts:
+
+-- 1. Find all employees in Sales department
+SELECT e.first_name, e.last_name, d.dept_name
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+WHERE d.dept_name = 'Sales';
+
+-- 2. Get the 3 lowest paid employees
+SELECT first_name, last_name, salary 
+FROM employees 
+ORDER BY salary 
+LIMIT 3;
+
+-- 3. Count how many employees were hired in 2020
+SELECT COUNT(*) as hired_2020 
+FROM employees 
+WHERE hire_date LIKE '2020%';
+
+-- 4. Find average salary for employees hired after 2019
+SELECT AVG(salary) as avg_salary_recent 
+FROM employees 
+WHERE hire_date > '2019-12-31';
+Expected Results
+Query 1 should return 2 employees (Sarah Johnson and Lisa Davis)
+Query 2 should return James Miller, Emily Brown, and Anna Wilson
+Query 3 should return 3 employees
+Query 4 should return approximately 65000
+Exit SQLite
+.quit
+Troubleshooting Tips
+Issue: "no such table" error
+
+Solution: Ensure you're connected to the correct database: sqlite3 company.db
+Issue: Query returns no results
+
+Solution: Check your WHERE conditions for typos. Remember SQL is case-sensitive for data values.
+Issue: Syntax error near a keyword
+
+Solution: Ensure you're using single quotes (') for text values, not double quotes (")
+Issue: Column not found
+
+Solution: Use .schema tablename to verify correct column names
+Conclusion
+You have successfully completed this lab on read-only SQL queries. You learned to:
+
+Execute SELECT statements to retrieve data from database tables
+Filter results using WHERE conditions with various operators
+Sort data using ORDER BY in ascending and descending order
+Limit result sets using the LIMIT clause
+Analyze data using aggregate functions like COUNT, AVG, MIN, and MAX
+Combine multiple clauses to create complex queries
+These skills form the foundation of data analysis and are essential for working with any relational database. Read-only queries are safe to practice because they never modify data, making them perfect for exploration and analysis.
+
+Next Steps: Practice writing your own queries with different combinations of WHERE, ORDER BY, and LIMIT to become more comfortable with SQL syntax and data analysis.
