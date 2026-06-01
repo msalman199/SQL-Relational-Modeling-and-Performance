@@ -7,3 +7,8 @@ Attributes:
 Entity 2: [Name]
 Attributes:
 ...
+Relationship 1: [Entity A] --- [Relationship Type] --- [Entity B]
+Cardinality: [1:1, 1:N, or M:N]
+Description: [Brief explanation]
+
+Relationship 2: ...
