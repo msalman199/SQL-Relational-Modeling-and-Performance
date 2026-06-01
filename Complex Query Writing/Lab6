@@ -1,0 +1,411 @@
+Complex Query Writing
+Prerequisites
+Basic SQL knowledge (SELECT, WHERE, ORDER BY)
+Understanding of database tables and relationships
+Familiarity with Linux command line
+Basic understanding of relational database concepts
+Learning Objectives
+By completing this lab, you will:
+
+Write advanced SQL queries using JOINs to combine data from multiple tables
+Implement subqueries for complex data retrieval
+Apply window functions for analytical operations
+Use aggregation functions with GROUP BY and HAVING clauses
+Environment Setup
+Install PostgreSQL
+# Update package list
+sudo apt update
+
+# Install PostgreSQL
+sudo apt install -y postgresql postgresql-contrib
+
+# Start PostgreSQL service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Switch to postgres user
+sudo -i -u postgres
+Create Database and Sample Data
+# Access PostgreSQL prompt
+psql
+-- Create database
+CREATE DATABASE sales_analytics;
+
+-- Connect to database
+\c sales_analytics
+
+-- Create tables
+CREATE TABLE customers (
+    customer_id SERIAL PRIMARY KEY,
+    customer_name VARCHAR(100),
+    city VARCHAR(50),
+    country VARCHAR(50),
+    registration_date DATE
+);
+
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,
+    product_name VARCHAR(100),
+    category VARCHAR(50),
+    unit_price DECIMAL(10,2)
+);
+
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    customer_id INT REFERENCES customers(customer_id),
+    order_date DATE,
+    total_amount DECIMAL(10,2)
+);
+
+CREATE TABLE order_items (
+    item_id SERIAL PRIMARY KEY,
+    order_id INT REFERENCES orders(order_id),
+    product_id INT REFERENCES products(product_id),
+    quantity INT,
+    price DECIMAL(10,2)
+);
+
+-- Insert sample data
+INSERT INTO customers (customer_name, city, country, registration_date) VALUES
+('Alice Johnson', 'New York', 'USA', '2023-01-15'),
+('Bob Smith', 'Los Angeles', 'USA', '2023-02-20'),
+('Carol White', 'Chicago', 'USA', '2023-03-10'),
+('David Brown', 'Houston', 'USA', '2023-04-05'),
+('Eve Davis', 'Phoenix', 'USA', '2023-05-12');
+
+INSERT INTO products (product_name, category, unit_price) VALUES
+('Laptop', 'Electronics', 999.99),
+('Mouse', 'Electronics', 29.99),
+('Keyboard', 'Electronics', 79.99),
+('Desk Chair', 'Furniture', 249.99),
+('Monitor', 'Electronics', 399.99),
+('Desk Lamp', 'Furniture', 49.99);
+
+INSERT INTO orders (customer_id, order_date, total_amount) VALUES
+(1, '2023-06-01', 1079.98),
+(2, '2023-06-05', 249.99),
+(1, '2023-06-10', 399.99),
+(3, '2023-06-15', 1329.97),
+(4, '2023-06-20', 79.98),
+(5, '2023-06-25', 999.99),
+(2, '2023-07-01', 449.98),
+(3, '2023-07-05', 29.99);
+
+INSERT INTO order_items (order_id, product_id, quantity, price) VALUES
+(1, 1, 1, 999.99),
+(1, 3, 1, 79.99),
+(2, 4, 1, 249.99),
+(3, 5, 1, 399.99),
+(4, 1, 1, 999.99),
+(4, 2, 1, 29.99),
+(4, 6, 6, 49.99),
+(5, 2, 1, 29.99),
+(5, 6, 1, 49.99),
+(6, 1, 1, 999.99),
+(7, 5, 1, 399.99),
+(7, 6, 1, 49.99),
+(8, 2, 1, 29.99);
+Task 1: Working with JOINs
+Objective
+Combine data from multiple tables to create meaningful reports.
+
+Instructions
+Step 1: Basic INNER JOIN
+
+Write a query to display all orders with customer information:
+
+-- TODO: Complete this query
+-- Join orders and customers tables
+-- Display: order_id, order_date, customer_name, city, total_amount
+-- Order by order_date
+
+SELECT 
+    -- Add columns here
+FROM orders o
+-- Add JOIN clause here
+-- Add ORDER BY clause here
+Step 2: Multiple JOINs
+
+Create a query showing order details with product information:
+
+-- TODO: Complete this query
+-- Join order_items, orders, products, and customers
+-- Display: order_id, customer_name, product_name, quantity, price
+-- Filter: Only Electronics category
+-- Order by order_id
+
+SELECT 
+    -- Add columns here
+FROM order_items oi
+-- Add JOIN clauses here (3 joins needed)
+-- Add WHERE clause for category filter
+-- Add ORDER BY clause
+Step 3: LEFT JOIN Analysis
+
+Find customers who haven't placed orders:
+
+-- TODO: Complete this query
+-- Use LEFT JOIN to include all customers
+-- Display customers with NULL order_id (no orders)
+-- Show: customer_name, city, registration_date
+
+SELECT 
+    -- Add columns here
+FROM customers c
+-- Add LEFT JOIN clause
+-- Add WHERE clause to filter NULL orders
+Task 2: Subqueries
+Objective
+Use nested queries for complex filtering and calculations.
+
+Instructions
+Step 1: Subquery in WHERE Clause
+
+Find products that have been ordered more than once:
+
+-- TODO: Complete this query
+-- Use subquery to count product occurrences in order_items
+-- Display: product_name, category, unit_price
+-- Filter: Products appearing in more than 1 order_item
+
+SELECT product_name, category, unit_price
+FROM products
+WHERE product_id IN (
+    -- Add subquery here
+    -- Select product_id from order_items
+    -- Group by product_id
+    -- Having count > 1
+);
+Step 2: Correlated Subquery
+
+Find customers whose total spending is above average:
+
+-- TODO: Complete this query
+-- Calculate each customer's total spending
+-- Compare with average spending (subquery)
+-- Display: customer_name, total_spent
+-- Order by total_spent DESC
+
+SELECT 
+    c.customer_name,
+    -- Add calculation for total_spent using subquery
+    (SELECT SUM(total_amount) 
+     FROM orders o2 
+     WHERE -- Add correlation condition
+    ) AS total_spent
+FROM customers c
+WHERE (
+    -- Add subquery to calculate total spending
+) > (
+    -- Add subquery to calculate average spending
+)
+-- Add ORDER BY clause
+Step 3: Subquery in SELECT Clause
+
+Display customers with their order count:
+
+-- TODO: Complete this query
+-- Use subquery in SELECT to count orders per customer
+-- Display: customer_name, city, order_count
+-- Include customers with 0 orders
+
+SELECT 
+    customer_name,
+    city,
+    -- Add subquery to count orders
+    (SELECT -- Complete this subquery
+    ) AS order_count
+FROM customers
+ORDER BY order_count DESC;
+Task 3: Window Functions
+Objective
+Perform analytical calculations across row sets without grouping.
+
+Instructions
+Step 1: ROW_NUMBER and RANK
+
+Rank customers by total spending:
+
+-- TODO: Complete this query
+-- Calculate total spending per customer
+-- Add ROW_NUMBER and RANK window functions
+-- Display: customer_name, total_spent, row_num, rank_num
+
+SELECT 
+    c.customer_name,
+    SUM(o.total_amount) AS total_spent,
+    -- Add ROW_NUMBER() OVER (ORDER BY ...)
+    -- Add RANK() OVER (ORDER BY ...)
+FROM customers c
+-- Add JOIN clause
+-- Add GROUP BY clause
+-- Add ORDER BY clause
+Step 2: Running Totals
+
+Calculate cumulative sales over time:
+
+-- TODO: Complete this query
+-- Show daily sales with running total
+-- Use SUM() OVER with ORDER BY for cumulative sum
+-- Display: order_date, daily_total, running_total
+
+SELECT 
+    order_date,
+    SUM(total_amount) AS daily_total,
+    -- Add SUM() OVER (ORDER BY order_date) for running total
+FROM orders
+-- Add GROUP BY clause
+-- Add ORDER BY clause
+Step 3: PARTITION BY
+
+Calculate each customer's order ranking by date:
+
+-- TODO: Complete this query
+-- Rank orders within each customer partition
+-- Display: customer_name, order_date, total_amount, order_rank
+-- Use ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ...)
+
+SELECT 
+    c.customer_name,
+    o.order_date,
+    o.total_amount,
+    -- Add ROW_NUMBER() with PARTITION BY customer_id
+FROM orders o
+-- Add JOIN clause
+-- Add ORDER BY clause
+Task 4: Advanced Aggregations
+Objective
+Combine aggregation functions with grouping and filtering.
+
+Instructions
+Step 1: GROUP BY with Multiple Columns
+
+Analyze sales by category and month:
+
+-- TODO: Complete this query
+-- Extract month from order_date
+-- Group by category and month
+-- Display: category, month, total_sales, order_count, avg_order_value
+-- Filter: Only months with total_sales > 500
+
+SELECT 
+    p.category,
+    -- Add EXTRACT or DATE_TRUNC for month
+    -- Add aggregation functions: SUM, COUNT, AVG
+FROM order_items oi
+-- Add JOIN clauses (orders and products)
+-- Add GROUP BY clause
+-- Add HAVING clause for filtering
+-- Add ORDER BY clause
+Step 2: ROLLUP for Subtotals
+
+Create a sales report with subtotals:
+
+-- TODO: Complete this query
+-- Use GROUP BY ROLLUP for hierarchical totals
+-- Display: country, city, total_sales
+-- Show subtotals by country and grand total
+
+SELECT 
+    -- Add COALESCE for NULL handling in ROLLUP results
+    country,
+    city,
+    SUM(o.total_amount) AS total_sales
+FROM customers c
+-- Add JOIN clause
+-- Add GROUP BY ROLLUP clause
+-- Add ORDER BY clause
+Step 3: Complex Aggregation with CASE
+
+Categorize customers by spending level:
+
+-- TODO: Complete this query
+-- Use CASE to create spending categories
+-- Categories: High (>1000), Medium (500-1000), Low (<500)
+-- Display: spending_category, customer_count, total_revenue
+
+SELECT 
+    CASE 
+        -- Add WHEN conditions for spending levels
+    END AS spending_category,
+    -- Add COUNT and SUM aggregations
+FROM (
+    -- Add subquery to calculate customer totals
+    SELECT 
+        customer_id,
+        SUM(total_amount) AS customer_total
+    FROM orders
+    GROUP BY customer_id
+) AS customer_spending
+-- Add GROUP BY clause
+-- Add ORDER BY clause
+Verification
+Verify JOIN Results
+-- Check that your multiple JOIN query returns correct product categories
+SELECT DISTINCT category 
+FROM order_items oi
+JOIN products p ON oi.product_id = p.product_id;
+-- Should show only 'Electronics' if filtered correctly
+Verify Subquery Results
+-- Verify products ordered more than once
+SELECT product_id, COUNT(*) as order_count
+FROM order_items
+GROUP BY product_id
+HAVING COUNT(*) > 1;
+-- Compare with your subquery results
+Verify Window Functions
+-- Check running total calculation
+SELECT order_date, 
+       SUM(total_amount) OVER (ORDER BY order_date) as running_total
+FROM orders
+ORDER BY order_date;
+-- Last row should equal total of all orders
+Verify Aggregations
+-- Verify total sales calculation
+SELECT SUM(total_amount) FROM orders;
+-- Should match your grand total in ROLLUP query
+Expected Outcomes
+After completing this lab, you should have:
+
+JOIN queries that combine 2-4 tables with proper relationships
+Subqueries in WHERE, SELECT, and FROM clauses for complex filtering
+Window functions showing rankings, running totals, and partitioned calculations
+Aggregation queries with GROUP BY, HAVING, ROLLUP, and CASE statements
+Understanding of when to use each technique for different analytical needs
+Troubleshooting Tips
+Issue: JOIN returns too many rows
+
+Check for missing JOIN conditions
+Verify foreign key relationships
+Use DISTINCT if duplicates are expected
+Issue: Subquery returns multiple rows error
+
+Use IN instead of = for multi-row subqueries
+Add LIMIT 1 if only one value is needed
+Verify subquery logic returns expected row count
+Issue: Window function syntax error
+
+Ensure OVER clause is present
+Check PARTITION BY and ORDER BY placement
+Verify column references in window frame
+Issue: GROUP BY error
+
+Include all non-aggregated columns in GROUP BY
+Check for typos in column names
+Verify aggregate functions are used correctly
+Conclusion
+You have successfully completed complex SQL query writing exercises covering:
+
+JOINs: Combining data from multiple related tables for comprehensive reports
+Subqueries: Nesting queries for advanced filtering and calculations
+Window Functions: Performing analytical operations without losing row detail
+Aggregations: Summarizing data with grouping, filtering, and hierarchical totals
+These skills are essential for data analysis, reporting, and business intelligence tasks. Practice combining these techniques to solve real-world data challenges efficiently.
+
+To exit PostgreSQL:
+
+\q
+To stop PostgreSQL service:
+
+exit  # Exit postgres user
+sudo systemctl stop postgresql
