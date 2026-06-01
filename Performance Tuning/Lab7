@@ -1,0 +1,355 @@
+Performance Tuning
+Prerequisites
+Basic SQL query knowledge (SELECT, WHERE, JOIN)
+Understanding of database concepts (tables, columns, indexes)
+Familiarity with Linux command line
+Basic understanding of database operations
+Learning Objectives
+By the end of this lab, you will be able to:
+
+Identify and analyze slow-performing queries
+Create and optimize database indexes
+Tune database configuration parameters
+Benchmark and measure performance improvements
+Environment Setup
+Install PostgreSQL
+# Update package list
+sudo apt update
+
+# Install PostgreSQL
+sudo apt install -y postgresql postgresql-contrib
+
+# Start PostgreSQL service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Switch to postgres user
+sudo -i -u postgres
+Create Test Database
+# Create database and connect
+createdb perflab
+psql perflab
+Generate Sample Data
+Execute the following SQL to create a test dataset:
+
+-- Create tables
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    username VARCHAR(50),
+    email VARCHAR(100),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    user_id INTEGER,
+    product_name VARCHAR(100),
+    amount DECIMAL(10,2),
+    order_date TIMESTAMP DEFAULT NOW()
+);
+
+-- Generate sample data (100,000 users)
+INSERT INTO users (username, email)
+SELECT 
+    'user_' || generate_series,
+    'user_' || generate_series || '@example.com'
+FROM generate_series(1, 100000);
+
+-- Generate sample data (500,000 orders)
+INSERT INTO orders (user_id, product_name, amount, order_date)
+SELECT 
+    (random() * 99999 + 1)::INTEGER,
+    'Product_' || (random() * 100)::INTEGER,
+    (random() * 1000)::DECIMAL(10,2),
+    NOW() - (random() * 365 || ' days')::INTERVAL
+FROM generate_series(1, 500000);
+Task 1: Analyze Slow Queries
+Step 1: Enable Query Timing
+-- Enable timing in psql
+\timing on
+Step 2: Run Baseline Queries
+Execute these queries and record execution times:
+
+-- Query 1: Find user orders (no index)
+SELECT u.username, COUNT(o.order_id) as order_count, SUM(o.amount) as total_spent
+FROM users u
+LEFT JOIN orders o ON u.user_id = o.user_id
+WHERE u.email LIKE '%5000@%'
+GROUP BY u.username;
+
+-- Query 2: Search orders by date range
+SELECT * FROM orders 
+WHERE order_date BETWEEN '2024-01-01' AND '2024-06-30'
+ORDER BY amount DESC
+LIMIT 100;
+
+-- Query 3: Aggregate query
+SELECT product_name, COUNT(*) as sales_count, AVG(amount) as avg_price
+FROM orders
+WHERE amount > 500
+GROUP BY product_name
+ORDER BY sales_count DESC;
+Step 3: Analyze Query Plans
+-- Use EXPLAIN ANALYZE to see execution details
+EXPLAIN ANALYZE
+SELECT u.username, COUNT(o.order_id) as order_count
+FROM users u
+LEFT JOIN orders o ON u.user_id = o.user_id
+WHERE u.email LIKE '%5000@%'
+GROUP BY u.username;
+TODO: Record the following metrics from EXPLAIN ANALYZE output:
+
+Execution Time: _____ ms
+Planning Time: _____ ms
+Scan Type: _____ (Seq Scan or Index Scan)
+Rows processed: _____
+Step 4: Identify Bottlenecks
+Look for these indicators in EXPLAIN ANALYZE:
+
+Sequential Scans on large tables
+High execution time (> 100ms for simple queries)
+Large row counts being processed
+Nested loops without indexes
+Task 2: Add and Optimize Indexes
+Step 1: Create Basic Indexes
+-- Index on foreign key
+CREATE INDEX idx_orders_user_id ON orders(user_id);
+
+-- Index on frequently filtered column
+CREATE INDEX idx_orders_date ON orders(order_date);
+
+-- Index on email for pattern matching
+CREATE INDEX idx_users_email ON users(email);
+Step 2: Create Composite Indexes
+-- TODO: Create a composite index for queries filtering by amount and date
+CREATE INDEX idx_orders_amount_date ON orders(_____, _____);
+
+-- TODO: Create an index for product name searches
+CREATE INDEX idx_orders_product ON orders(_____);
+Step 3: Verify Index Usage
+-- Re-run Query 1 with indexes
+EXPLAIN ANALYZE
+SELECT u.username, COUNT(o.order_id) as order_count
+FROM users u
+LEFT JOIN orders o ON u.user_id = o.user_id
+WHERE u.email LIKE '%5000@%'
+GROUP BY u.username;
+Expected Improvement: Execution time should decrease by 50-80%
+
+Step 4: Analyze Index Effectiveness
+-- View all indexes on orders table
+\d orders
+
+-- Check index sizes
+SELECT 
+    tablename,
+    indexname,
+    pg_size_pretty(pg_relation_size(indexrelid)) as index_size
+FROM pg_indexes
+JOIN pg_class ON pg_indexes.indexname = pg_class.relname
+WHERE tablename IN ('users', 'orders');
+Task 3: Tune Database Configuration
+Step 1: Check Current Configuration
+-- View current settings
+SHOW shared_buffers;
+SHOW work_mem;
+SHOW maintenance_work_mem;
+SHOW effective_cache_size;
+Step 2: Calculate Optimal Settings
+For a system with 4GB RAM, use these guidelines:
+
+shared_buffers: 25% of RAM = 1GB
+effective_cache_size: 50-75% of RAM = 2-3GB
+work_mem: 25MB - 50MB per connection
+maintenance_work_mem: 256MB - 1GB
+Step 3: Update Configuration
+# Exit psql
+\q
+
+# Edit PostgreSQL configuration
+sudo nano /etc/postgresql/*/main/postgresql.conf
+TODO: Modify these parameters (uncomment and update values):
+
+shared_buffers = 1GB
+effective_cache_size = 3GB
+work_mem = 32MB
+maintenance_work_mem = 512MB
+random_page_cost = 1.1
+Step 4: Apply Changes
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+
+# Reconnect
+sudo -i -u postgres
+psql perflab
+Step 5: Verify Configuration Changes
+SHOW shared_buffers;
+SHOW effective_cache_size;
+Task 4: Benchmark Performance Improvements
+Step 1: Create Benchmark Script
+Exit psql and create a benchmark file:
+
+# Exit to shell
+\q
+exit
+
+# Create benchmark script
+nano benchmark.sql
+Add the following content:
+
+\timing on
+
+-- Benchmark Query 1
+SELECT u.username, COUNT(o.order_id) as order_count, SUM(o.amount) as total_spent
+FROM users u
+LEFT JOIN orders o ON u.user_id = o.user_id
+WHERE u.email LIKE '%5000@%'
+GROUP BY u.username;
+
+-- Benchmark Query 2
+SELECT * FROM orders 
+WHERE order_date BETWEEN '2024-01-01' AND '2024-06-30'
+AND amount > 500
+ORDER BY amount DESC
+LIMIT 100;
+
+-- Benchmark Query 3
+SELECT product_name, COUNT(*) as sales_count, AVG(amount) as avg_price
+FROM orders
+WHERE amount > 500
+GROUP BY product_name
+ORDER BY sales_count DESC
+LIMIT 20;
+Step 2: Run Benchmark
+# Run benchmark as postgres user
+sudo -u postgres psql perflab -f benchmark.sql > benchmark_results.txt
+
+# View results
+cat benchmark_results.txt
+Step 3: Compare Results
+TODO: Fill in your performance comparison:
+
+Query	Before (ms)	After (ms)	Improvement (%)
+Query 1	_____	_____	_____
+Query 2	_____	_____	_____
+Query 3	_____	_____	_____
+Step 4: Advanced Analysis
+-- Reconnect to database
+sudo -u postgres psql perflab
+-- Check cache hit ratio (should be > 90%)
+SELECT 
+    sum(heap_blks_read) as heap_read,
+    sum(heap_blks_hit) as heap_hit,
+    sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)) * 100 as cache_hit_ratio
+FROM pg_statio_user_tables;
+
+-- Identify unused indexes
+SELECT 
+    schemaname,
+    tablename,
+    indexname,
+    idx_scan,
+    pg_size_pretty(pg_relation_size(indexrelid)) as index_size
+FROM pg_stat_user_indexes
+WHERE idx_scan = 0
+ORDER BY pg_relation_size(indexrelid) DESC;
+Verification
+Verify Indexes
+-- List all indexes
+SELECT tablename, indexname, indexdef 
+FROM pg_indexes 
+WHERE tablename IN ('users', 'orders')
+ORDER BY tablename, indexname;
+Expected Output: At least 5 indexes created
+
+Verify Configuration
+-- Check key parameters
+SELECT name, setting, unit 
+FROM pg_settings 
+WHERE name IN ('shared_buffers', 'effective_cache_size', 'work_mem', 'maintenance_work_mem');
+Expected Output: Values should match your tuned configuration
+
+Verify Performance
+-- Run a complex query and verify it completes quickly
+EXPLAIN ANALYZE
+SELECT u.username, COUNT(o.order_id), SUM(o.amount)
+FROM users u
+JOIN orders o ON u.user_id = o.user_id
+WHERE o.order_date > NOW() - INTERVAL '180 days'
+GROUP BY u.username
+HAVING COUNT(o.order_id) > 5
+ORDER BY SUM(o.amount) DESC
+LIMIT 10;
+Expected Output:
+
+Execution time < 200ms
+Index scans instead of sequential scans
+Efficient join operations
+Troubleshooting
+Issue: Indexes Not Being Used
+Solution:
+
+-- Update table statistics
+ANALYZE users;
+ANALYZE orders;
+
+-- Rebuild indexes if needed
+REINDEX TABLE orders;
+Issue: Configuration Changes Not Applied
+Solution:
+
+# Check PostgreSQL status
+sudo systemctl status postgresql
+
+# View error logs
+sudo tail -f /var/log/postgresql/postgresql-*-main.log
+
+# Verify config file syntax
+sudo -u postgres postgres -C shared_buffers
+Issue: Out of Memory Errors
+Solution:
+
+-- Reduce work_mem temporarily
+SET work_mem = '16MB';
+
+-- Or modify for session
+ALTER DATABASE perflab SET work_mem = '16MB';
+Issue: Slow Query Despite Indexes
+Checklist:
+
+Verify index exists: \d table_name
+Check if statistics are updated: ANALYZE table_name;
+Ensure query uses indexed columns in WHERE clause
+Avoid functions on indexed columns: WHERE LOWER(email) prevents index use
+Conclusion
+In this lab, you have:
+
+Analyzed query performance using EXPLAIN ANALYZE
+Identified bottlenecks through execution plans
+Created strategic indexes to improve query speed
+Tuned PostgreSQL configuration for better resource utilization
+Benchmarked improvements with measurable metrics
+Key Takeaways:
+
+Indexes dramatically improve read performance but add overhead to writes
+Configuration tuning should match your hardware resources
+Always measure before and after optimization
+Regular ANALYZE keeps query planner statistics current
+Performance Gains Achieved:
+
+Query execution times reduced by 50-90%
+Eliminated sequential scans on large tables
+Improved cache hit ratios
+Optimized memory allocation for concurrent queries
+Next Steps:
+
+Explore partial indexes for specific query patterns
+Learn about query result caching
+Study connection pooling with PgBouncer
+Investigate table partitioning for very large datasets
+Clean up (optional):
+
+-- Drop test database
+\q
+exit
+sudo -u postgres dropdb perflab
