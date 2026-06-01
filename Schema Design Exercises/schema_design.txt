@@ -1,0 +1,9 @@
+Entity 1: [Name]
+Attributes:
+- [attribute1] (data type, constraints)
+- [attribute2] (data type, constraints)
+...
+
+Entity 2: [Name]
+Attributes:
+...
