@@ -1,0 +1,224 @@
+Connect to PostgreSQL
+Prerequisites
+Basic Linux command line knowledge
+Understanding of what a database is
+Access to a Linux machine with sudo privileges
+Internet connection for package installation
+Learning Objectives
+By the end of this lab, you will be able to:
+
+Install PostgreSQL client tools on Linux
+Configure database connection credentials
+Connect to PostgreSQL using the psql command-line tool
+Verify successful database connections
+List available databases in PostgreSQL
+Environment Setup
+Note: Al Nafi provides a bare-metal Linux cloud machine. Click the "Start Lab" button to access your environment. You will install all necessary tools during this lab.
+
+System Information
+Operating System: Linux (Ubuntu/Debian-based)
+Required Tools: PostgreSQL client and server
+Estimated Time: 45 minutes
+Task 1: Install PostgreSQL
+Step 1: Update Package Repository
+Before installing any software, update your system's package list:
+
+sudo apt update
+What this does: Refreshes the list of available packages and their versions.
+
+Step 2: Install PostgreSQL
+Install both the PostgreSQL server and client tools:
+
+sudo apt install postgresql postgresql-contrib -y
+Components installed:
+
+postgresql: The database server
+postgresql-contrib: Additional utilities and extensions
+-y: Automatically answers "yes" to installation prompts
+Step 3: Verify Installation
+Check that PostgreSQL is installed and running:
+
+sudo systemctl status postgresql
+Expected output: You should see "active (running)" in green text.
+
+If the service is not running, start it:
+
+sudo systemctl start postgresql
+Step 4: Check PostgreSQL Version
+Verify the installed version:
+
+psql --version
+Expected output: Something like psql (PostgreSQL) 14.x or similar.
+
+Task 2: Configure Database Credentials and Connect
+Step 1: Switch to PostgreSQL User
+PostgreSQL creates a default system user called postgres during installation. Switch to this user:
+
+sudo -i -u postgres
+What this does: Logs you in as the postgres user, which has default access to the database.
+
+Step 2: Access PostgreSQL Prompt
+Connect to PostgreSQL using the psql client:
+
+psql
+Expected output: You should see a prompt like postgres=#
+
+This means you're now inside the PostgreSQL interactive terminal.
+
+Step 3: List All Databases
+Once connected, list all available databases:
+
+\l
+Expected output: A table showing databases including:
+
+postgres (default database)
+template0 and template1 (template databases)
+Step 4: Display Connection Information
+Check your current connection details:
+
+\conninfo
+Expected output: Shows your current database, user, socket, and port information.
+
+Step 5: Create a Test Database
+Create a new database to verify you have proper permissions:
+
+CREATE DATABASE testdb;
+Expected output: CREATE DATABASE
+
+List databases again to confirm:
+
+\l
+You should now see testdb in the list.
+
+Step 6: Connect to Your New Database
+Switch to the newly created database:
+
+\c testdb
+Expected output: You are now connected to database "testdb" as user "postgres".
+
+Step 7: Exit PostgreSQL
+Exit the psql prompt:
+
+\q
+Return to your regular user account:
+
+exit
+Task 3: Create a Custom Database User
+Step 1: Create a New PostgreSQL User
+Switch back to the postgres user and create a custom database user:
+
+sudo -u postgres createuser --interactive
+Prompts you'll see:
+
+Enter name of role to add: labuser
+Shall the new role be a superuser? n
+Step 2: Set Password for New User
+Access PostgreSQL as the postgres user:
+
+sudo -u postgres psql
+Set a password for your new user:
+
+ALTER USER labuser WITH PASSWORD 'securepassword123';
+Note: In production, use strong passwords. This is just for learning.
+
+Step 3: Grant Database Access
+Grant the new user access to the test database:
+
+GRANT ALL PRIVILEGES ON DATABASE testdb TO labuser;
+Exit psql:
+
+\q
+Step 4: Configure Password Authentication
+Edit the PostgreSQL authentication configuration:
+
+sudo nano /etc/postgresql/*/main/pg_hba.conf
+Find this line:
+
+local   all             all                                     peer
+Change it to:
+
+local   all             all                                     md5
+What this does: Enables password authentication for local connections.
+
+Save and exit (Ctrl+X, then Y, then Enter).
+
+Step 5: Restart PostgreSQL
+Apply the configuration changes:
+
+sudo systemctl restart postgresql
+Step 6: Test Connection with New User
+Connect using your new user credentials:
+
+psql -U labuser -d testdb -h localhost
+Prompt: Enter password: securepassword123
+
+Expected output: testdb=> prompt
+
+List databases as the new user:
+
+\l
+Exit:
+
+\q
+Verification
+Checklist
+Verify you've completed all tasks:
+
+PostgreSQL is installed:
+
+psql --version
+PostgreSQL service is running:
+
+sudo systemctl status postgresql
+Can connect as postgres user:
+
+sudo -u postgres psql -c "\conninfo"
+Test database exists:
+
+sudo -u postgres psql -c "\l" | grep testdb
+Custom user can connect:
+
+psql -U labuser -d testdb -h localhost -c "\conninfo"
+(Enter password when prompted)
+
+Expected Results
+All commands should execute without errors. You should see:
+
+Version information displayed
+Active/running status for PostgreSQL
+Connection information showing successful connections
+Database listings including your testdb
+Troubleshooting Tips
+Issue: "psql: command not found"
+Solution: PostgreSQL client not installed. Run:
+
+sudo apt install postgresql-client
+Issue: "connection refused"
+Solution: PostgreSQL service not running. Start it:
+
+sudo systemctl start postgresql
+Issue: "authentication failed"
+Solution:
+
+Verify password is correct
+Check pg_hba.conf has md5 authentication enabled
+Restart PostgreSQL after configuration changes
+Issue: "permission denied"
+Solution: Make sure you're using sudo for system commands or switched to the postgres user.
+
+Conclusion
+Congratulations! You have successfully:
+
+Installed PostgreSQL database server and client tools
+Configured and verified the PostgreSQL service
+Connected to PostgreSQL using the default postgres user
+Created a custom database and database user
+Configured password-based authentication
+Verified connections using different authentication methods
+Why This Matters: PostgreSQL is one of the most popular open-source relational databases used in production environments worldwide. The skills you learned today—installing, configuring, and connecting to PostgreSQL—are fundamental for any database administrator, backend developer, or data engineer. You now have a working PostgreSQL installation that you can use for future labs and projects.
+
+Next Steps: In future labs, you'll learn to create tables, insert data, write queries, and perform more advanced database operations using this PostgreSQL installation.
+
+Lab Terminal
+
+Instructions
