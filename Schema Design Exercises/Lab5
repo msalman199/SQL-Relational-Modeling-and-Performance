@@ -1,0 +1,312 @@
+Schema Design Exercises
+Prerequisites
+Basic understanding of relational database concepts (tables, rows, columns)
+Familiarity with SQL data types
+Understanding of primary and foreign keys
+Access to a Linux machine with sudo privileges
+Basic command-line navigation skills
+Learning Objectives
+By the end of this lab, you will be able to:
+
+Identify entities and attributes from business requirements
+Define relationships between entities using ER modeling
+Apply normalization rules (1NF, 2NF, 3NF) to eliminate redundancy
+Create normalized database tables using SQL DDL statements
+Environment Setup
+Install PostgreSQL
+# Update package list
+sudo apt update
+
+# Install PostgreSQL
+sudo apt install -y postgresql postgresql-contrib
+
+# Start PostgreSQL service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Switch to postgres user and access PostgreSQL
+sudo -u postgres psql
+Create Lab Database
+-- Inside psql prompt
+CREATE DATABASE schema_lab;
+\c schema_lab
+\q
+Access the Lab Database
+# Connect to the database
+sudo -u postgres psql -d schema_lab
+Task 1: Entity Identification and Relationship Design
+Scenario
+You are designing a database for a University Course Registration System with the following requirements:
+
+Students enroll in courses
+Each course is taught by one instructor
+Instructors can teach multiple courses
+Students have a name, email, and enrollment date
+Courses have a code, title, and credit hours
+Instructors have a name, email, and department
+Track which semester a student enrolled in a course
+Record the grade received by each student in each course
+Step 1.1: Identify Entities
+Create a text file to document your design:
+
+nano schema_design.txt
+TODO: List all entities you can identify from the requirements above. For each entity, list its attributes.
+
+Template:
+
+Entity 1: [Name]
+Attributes:
+- [attribute1] (data type, constraints)
+- [attribute2] (data type, constraints)
+...
+
+Entity 2: [Name]
+Attributes:
+...
+Hint: Look for nouns in the requirements. You should identify at least 3 main entities.
+
+Step 1.2: Define Relationships
+TODO: In the same file, document the relationships between entities.
+
+Template:
+
+Relationship 1: [Entity A] --- [Relationship Type] --- [Entity B]
+Cardinality: [1:1, 1:N, or M:N]
+Description: [Brief explanation]
+
+Relationship 2: ...
+Questions to consider:
+
+Can a student enroll in multiple courses?
+Can a course have multiple students?
+Can an instructor teach multiple courses?
+What type of relationship exists between students and courses?
+Save and exit (Ctrl+O, Enter, Ctrl+X).
+
+Task 2: Apply Normalization Rules
+Step 2.1: Create Initial Unnormalized Table
+Consider this poorly designed single table:
+
+-- DO NOT RUN THIS - This is an example of BAD design
+CREATE TABLE course_records (
+    student_id INT,
+    student_name VARCHAR(100),
+    student_email VARCHAR(100),
+    enrollment_date DATE,
+    course_code VARCHAR(10),
+    course_title VARCHAR(100),
+    credit_hours INT,
+    instructor_name VARCHAR(100),
+    instructor_email VARCHAR(100),
+    instructor_dept VARCHAR(50),
+    semester VARCHAR(20),
+    grade CHAR(2)
+);
+Step 2.2: Identify Normalization Issues
+TODO: Create a file documenting normalization violations:
+
+nano normalization_analysis.txt
+Analysis Template:
+
+UNNORMALIZED FORM ISSUES:
+- Issue 1: [Describe the problem]
+- Issue 2: [Describe the problem]
+
+FIRST NORMAL FORM (1NF) VIOLATIONS:
+- [List any repeating groups or multi-valued attributes]
+
+SECOND NORMAL FORM (2NF) VIOLATIONS:
+- [List any partial dependencies on composite keys]
+
+THIRD NORMAL FORM (3NF) VIOLATIONS:
+- [List any transitive dependencies]
+Hints:
+
+What happens if a student enrolls in 3 courses?
+What data gets duplicated?
+If an instructor changes their email, how many rows need updating?
+Step 2.3: Design Normalized Schema
+TODO: Design a normalized schema that eliminates the issues identified above.
+
+Create a new file:
+
+nano normalized_schema.sql
+Template to complete:
+
+-- TODO: Create Students table
+CREATE TABLE students (
+    -- Define appropriate columns
+    -- Include primary key
+    -- Add constraints (NOT NULL, UNIQUE where appropriate)
+);
+
+-- TODO: Create Instructors table
+CREATE TABLE instructors (
+    -- Define appropriate columns
+);
+
+-- TODO: Create Courses table
+CREATE TABLE courses (
+    -- Define appropriate columns
+    -- Include foreign key to instructors
+);
+
+-- TODO: Create Enrollments table (junction table)
+CREATE TABLE enrollments (
+    -- Define appropriate columns
+    -- Include composite primary key or surrogate key
+    -- Include foreign keys to students and courses
+    -- Include semester and grade columns
+);
+Requirements:
+
+Each table must have a primary key
+Use appropriate data types
+Add foreign key constraints
+Include NOT NULL constraints where appropriate
+Ensure no redundant data
+Task 3: Implement and Verify Schema
+Step 3.1: Execute Your Schema
+# Run your SQL file
+sudo -u postgres psql -d schema_lab -f normalized_schema.sql
+If you encounter errors:
+
+Check for syntax errors (missing commas, semicolons)
+Verify table creation order (tables with foreign keys must be created after referenced tables)
+Ensure data types are valid
+Step 3.2: Insert Sample Data
+TODO: Create a file with INSERT statements to populate your tables:
+
+nano sample_data.sql
+Template:
+
+-- TODO: Insert at least 2 instructors
+INSERT INTO instructors VALUES (...);
+
+-- TODO: Insert at least 3 courses
+INSERT INTO courses VALUES (...);
+
+-- TODO: Insert at least 3 students
+INSERT INTO students VALUES (...);
+
+-- TODO: Insert at least 5 enrollment records
+INSERT INTO enrollments VALUES (...);
+Execute the data:
+
+sudo -u postgres psql -d schema_lab -f sample_data.sql
+Step 3.3: Verify Relationships
+TODO: Write queries to verify your schema works correctly:
+
+nano verification_queries.sql
+Complete these queries:
+
+-- Query 1: List all courses with their instructor names
+SELECT 
+    -- TODO: Select appropriate columns
+FROM courses
+    -- TODO: Join with instructors table
+;
+
+-- Query 2: List all students enrolled in a specific course
+SELECT 
+    -- TODO: Select student information
+FROM students
+    -- TODO: Join through enrollments to courses
+WHERE 
+    -- TODO: Filter by course code
+;
+
+-- Query 3: Show student name, course title, and grade for all enrollments
+SELECT 
+    -- TODO: Select from multiple tables
+FROM 
+    -- TODO: Join students, enrollments, and courses
+;
+
+-- Query 4: Count how many students are enrolled in each course
+SELECT 
+    -- TODO: Use GROUP BY and COUNT
+;
+Run verification:
+
+sudo -u postgres psql -d schema_lab -f verification_queries.sql
+Verification
+Check Table Structure
+-- Connect to database
+sudo -u postgres psql -d schema_lab
+-- List all tables
+\dt
+
+-- Describe each table structure
+\d students
+\d instructors
+\d courses
+\d enrollments
+
+-- Verify foreign key constraints
+SELECT
+    tc.table_name, 
+    kcu.column_name,
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+JOIN information_schema.constraint_column_usage AS ccu
+    ON ccu.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY';
+Expected Results
+You should have:
+
+4 normalized tables with no redundant data
+Primary keys defined on all tables
+Foreign key relationships properly established
+Sample data successfully inserted
+Queries returning meaningful results without errors
+Normalization Checklist
+ 1NF: All columns contain atomic values (no repeating groups)
+ 2NF: No partial dependencies (all non-key attributes depend on entire primary key)
+ 3NF: No transitive dependencies (non-key attributes don't depend on other non-key attributes)
+ Referential Integrity: Foreign keys properly reference primary keys
+ Data Redundancy: Minimal data duplication
+Troubleshooting
+Error: relation already exists
+
+-- Drop tables in reverse order (due to foreign keys)
+DROP TABLE IF EXISTS enrollments;
+DROP TABLE IF EXISTS courses;
+DROP TABLE IF EXISTS instructors;
+DROP TABLE IF EXISTS students;
+Error: foreign key constraint violation
+
+Ensure referenced records exist before inserting dependent records
+Insert data in order: instructors → courses → students → enrollments
+Error: syntax error near...
+
+Check for missing commas between column definitions
+Ensure all statements end with semicolons
+Verify data type syntax
+Conclusion
+In this lab, you practiced essential database design skills:
+
+Entity Identification: Extracted entities and attributes from business requirements
+Relationship Modeling: Defined cardinality and relationships between entities
+Normalization: Applied 1NF, 2NF, and 3NF to eliminate redundancy and anomalies
+Schema Implementation: Created normalized tables with proper constraints
+Key Takeaways:
+
+Normalization reduces data redundancy and prevents update anomalies
+Foreign keys enforce referential integrity between related tables
+Junction tables resolve many-to-many relationships
+Proper schema design improves data consistency and query performance
+Next Steps:
+
+Practice with more complex scenarios (multiple many-to-many relationships)
+Explore denormalization for performance optimization
+Learn about indexing strategies for normalized schemas
+Study advanced normalization forms (BCNF, 4NF)
+Clean up (optional):
+
+-- Drop the lab database
+DROP DATABASE schema_lab;
+\q
