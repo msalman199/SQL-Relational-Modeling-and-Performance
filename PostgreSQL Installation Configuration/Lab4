@@ -1,0 +1,348 @@
+PostgreSQL Installation & Configuration
+Prerequisites
+Basic Linux command-line knowledge
+Understanding of database concepts (tables, users, permissions)
+Familiarity with text editors (nano or vi)
+Root or sudo access to a Linux machine
+Learning Objectives
+By completing this lab, you will:
+
+Install PostgreSQL database server on Linux
+Configure PostgreSQL for production usage
+Create and manage database users and roles
+Configure authentication methods
+Test database connectivity using multiple methods
+Environment Setup
+Note: Al Nafi provides a bare-metal Linux cloud machine. Click the "Start Lab" button to provision your environment. All tools will be installed during this lab.
+
+System Requirements:
+
+Ubuntu 20.04 or later / CentOS 8 or later
+Minimum 2GB RAM
+10GB available disk space
+Internet connectivity for package installation
+Task 1: Install PostgreSQL
+Step 1.1: Update System Packages
+# For Ubuntu/Debian
+sudo apt update && sudo apt upgrade -y
+
+# For CentOS/RHEL
+sudo dnf update -y
+Step 1.2: Install PostgreSQL
+# For Ubuntu/Debian (installs PostgreSQL 14+)
+sudo apt install postgresql postgresql-contrib -y
+
+# For CentOS/RHEL
+sudo dnf install postgresql-server postgresql-contrib -y
+sudo postgresql-setup --initdb
+Step 1.3: Start and Enable PostgreSQL Service
+# Start the service
+sudo systemctl start postgresql
+
+# Enable service to start on boot
+sudo systemctl enable postgresql
+
+# Verify service status
+sudo systemctl status postgresql
+Expected Output: Service should show "active (running)" status.
+
+Step 1.4: Verify Installation
+# Check PostgreSQL version
+psql --version
+
+# Check listening ports
+sudo ss -tunelp | grep 5432
+Note: By default, PostgreSQL listens on localhost (127.0.0.1) port 5432.
+
+Task 2: Configure Users and Roles
+Step 2.1: Access PostgreSQL as Default User
+# Switch to postgres system user
+sudo -i -u postgres
+
+# Access PostgreSQL prompt
+psql
+You should see the PostgreSQL prompt: postgres=#
+
+Step 2.2: Create Database Roles
+Execute the following SQL commands in the PostgreSQL prompt:
+
+-- Create an admin role with login capability
+CREATE ROLE db_admin WITH LOGIN PASSWORD 'SecureAdminPass123!';
+
+-- Grant superuser privileges
+ALTER ROLE db_admin WITH SUPERUSER CREATEDB CREATEROLE;
+
+-- Create a regular application user
+CREATE ROLE app_user WITH LOGIN PASSWORD 'AppUserPass456!';
+
+-- Create a read-only role
+CREATE ROLE readonly_user WITH LOGIN PASSWORD 'ReadOnlyPass789!';
+
+-- Verify created roles
+\du
+Step 2.3: Create a Test Database and Grant Permissions
+-- Create a test database
+CREATE DATABASE testdb OWNER app_user;
+
+-- Connect to the database
+\c testdb
+
+-- Create a sample table
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    price DECIMAL(10,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Grant privileges to app_user
+GRANT ALL PRIVILEGES ON DATABASE testdb TO app_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO app_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+
+-- Grant read-only access to readonly_user
+GRANT CONNECT ON DATABASE testdb TO readonly_user;
+GRANT USAGE ON SCHEMA public TO readonly_user;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly_user;
+
+-- Exit psql
+\q
+Exit from postgres user:
+
+exit
+Task 3: Configure Authentication
+Step 3.1: Locate Configuration Files
+# Find PostgreSQL configuration directory
+sudo -u postgres psql -c "SHOW config_file;"
+
+# Typical locations:
+# Ubuntu/Debian: /etc/postgresql/[version]/main/
+# CentOS/RHEL: /var/lib/pgsql/data/
+Step 3.2: Configure pg_hba.conf for Authentication
+# Backup the original file
+sudo cp /etc/postgresql/*/main/pg_hba.conf /etc/postgresql/*/main/pg_hba.conf.backup
+
+# Edit pg_hba.conf (adjust path for your system)
+sudo nano /etc/postgresql/*/main/pg_hba.conf
+Add/Modify these lines (place before the default entries):
+
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+# Local connections use md5 password authentication
+local   all             all                                     md5
+
+# IPv4 local connections
+host    all             all             127.0.0.1/32            md5
+
+# IPv6 local connections
+host    all             all             ::1/128                 md5
+
+# Allow connections from local network (optional - adjust subnet)
+host    testdb          app_user        192.168.1.0/24          md5
+host    testdb          readonly_user   192.168.1.0/24          md5
+Authentication Methods Explained:
+
+md5: Password authentication (encrypted)
+trust: No password required (use only for local development)
+peer: Use operating system username
+scram-sha-256: More secure password authentication (PostgreSQL 10+)
+Step 3.3: Configure postgresql.conf for Network Access
+# Edit postgresql.conf
+sudo nano /etc/postgresql/*/main/postgresql.conf
+Find and modify these settings:
+
+# Listen on all interfaces (for production, specify exact IP)
+listen_addresses = 'localhost'  # Change to '*' for all interfaces or specific IP
+
+# Maximum connections
+max_connections = 100
+
+# Shared buffers (25% of RAM recommended)
+shared_buffers = 256MB
+
+# Logging configuration
+logging_collector = on
+log_directory = 'log'
+log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+log_statement = 'all'  # Change to 'ddl' or 'mod' in production
+Step 3.4: Restart PostgreSQL to Apply Changes
+sudo systemctl restart postgresql
+
+# Verify service restarted successfully
+sudo systemctl status postgresql
+Task 4: Test Connectivity
+Step 4.1: Test Local Connection with Password Authentication
+# Test connection as app_user
+psql -U app_user -d testdb -h localhost
+
+# When prompted, enter password: AppUserPass456!
+In the psql prompt, test permissions:
+
+-- Insert test data
+INSERT INTO products (name, price) VALUES ('Laptop', 999.99);
+INSERT INTO products (name, price) VALUES ('Mouse', 29.99);
+
+-- Query data
+SELECT * FROM products;
+
+-- Exit
+\q
+Step 4.2: Test Read-Only User
+# Connect as readonly_user
+psql -U readonly_user -d testdb -h localhost
+
+# Password: ReadOnlyPass789!
+Test read-only restrictions:
+
+-- This should work
+SELECT * FROM products;
+
+-- This should fail with permission error
+INSERT INTO products (name, price) VALUES ('Keyboard', 79.99);
+
+-- Exit
+\q
+Step 4.3: Create Connection Test Script
+Create a simple connection test script:
+
+nano test_connection.sh
+Add the following content:
+
+#!/bin/bash
+
+# TODO: Complete this script to test database connectivity
+# Requirements:
+# 1. Test connection to testdb as app_user
+# 2. Execute a simple query (SELECT version();)
+# 3. Display connection success/failure message
+# 4. Exit with appropriate status code
+
+DB_HOST="localhost"
+DB_NAME="testdb"
+DB_USER="app_user"
+DB_PASS="AppUserPass456!"
+
+# TODO: Use PGPASSWORD environment variable and psql command
+# Hint: PGPASSWORD=$DB_PASS psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "YOUR_QUERY"
+
+echo "Testing database connectivity..."
+
+# TODO: Implement connection test
+
+# TODO: Check exit status and display appropriate message
+Make it executable and run:
+
+chmod +x test_connection.sh
+./test_connection.sh
+Step 4.4: Test Connection Using Python (Optional)
+Install psycopg2:
+
+sudo apt install python3-pip -y
+pip3 install psycopg2-binary
+Create a test script:
+
+# test_db.py
+import psycopg2
+
+def test_connection():
+    """
+    Test PostgreSQL connection and execute a simple query.
+    
+    TODO: Complete the connection parameters
+    TODO: Implement error handling
+    TODO: Execute a test query and display results
+    """
+    try:
+        # TODO: Complete connection parameters
+        conn = psycopg2.connect(
+            host="localhost",
+            database="testdb",
+            user="app_user",
+            password="AppUserPass456!"
+        )
+        
+        # TODO: Create cursor and execute query
+        cursor = conn.cursor()
+        
+        # TODO: Execute SELECT query on products table
+        
+        # TODO: Fetch and print results
+        
+        # TODO: Close cursor and connection
+        
+        print("Connection successful!")
+        
+    except Exception as e:
+        print(f"Connection failed: {e}")
+
+if __name__ == "__main__":
+    test_connection()
+Run the script:
+
+python3 test_db.py
+Verification
+Checklist
+Verify your installation and configuration:
+
+Service Status:
+sudo systemctl is-active postgresql
+# Expected: active
+User Roles Exist:
+sudo -u postgres psql -c "\du"
+# Should list: db_admin, app_user, readonly_user
+Database Exists:
+sudo -u postgres psql -c "\l" | grep testdb
+# Should show testdb owned by app_user
+Authentication Works:
+psql -U app_user -d testdb -h localhost -c "SELECT current_user;"
+# Should return: app_user
+Permissions Correct:
+# Test write permission
+psql -U app_user -d testdb -h localhost -c "SELECT COUNT(*) FROM products;"
+
+# Test read-only restriction
+psql -U readonly_user -d testdb -h localhost -c "SELECT COUNT(*) FROM products;"
+Troubleshooting Tips
+Issue: Cannot connect to PostgreSQL
+
+Check service status: sudo systemctl status postgresql
+Verify port is listening: sudo ss -tunelp | grep 5432
+Check pg_hba.conf authentication rules
+Issue: Password authentication fails
+
+Verify user exists: sudo -u postgres psql -c "\du"
+Check pg_hba.conf has md5 method for the connection type
+Ensure you restarted PostgreSQL after config changes
+Issue: Permission denied errors
+
+Verify role privileges: \du in psql
+Check database ownership: \l in psql
+Grant necessary permissions using GRANT statements
+Issue: Cannot find configuration files
+
+Ubuntu/Debian: /etc/postgresql/[version]/main/
+CentOS/RHEL: /var/lib/pgsql/data/
+Use: sudo -u postgres psql -c "SHOW config_file;"
+Conclusion
+You have successfully:
+
+Installed PostgreSQL database server on Linux
+Created multiple database roles with different privilege levels
+Configured authentication methods using pg_hba.conf
+Set up network and performance parameters in postgresql.conf
+Tested database connectivity using multiple methods
+Implemented role-based access control
+Key Takeaways:
+
+PostgreSQL uses role-based authentication and authorization
+The pg_hba.conf file controls client authentication methods
+Different authentication methods (md5, scram-sha-256, peer) serve different security needs
+Proper user role configuration is essential for database security
+Always restart PostgreSQL after configuration changes
+Next Steps:
+
+Explore advanced PostgreSQL features (replication, backup strategies)
+Implement SSL/TLS encryption for connections
+Set up automated backup procedures
+Monitor database performance and optimize queries
+Learn about PostgreSQL extensions and advanced data types
